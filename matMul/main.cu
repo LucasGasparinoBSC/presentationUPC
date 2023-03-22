@@ -4,7 +4,7 @@
 int main()
 {
     // Set matrix row size
-    int nrow = 4096;
+    int nrow = 8000;
     printf("Total memory used: %f MB\n", 3*nrow*nrow*sizeof(float)/1024.0f/1024.0f);
 
     // Allocate n*n matrices
@@ -42,20 +42,28 @@ int main()
     printf("Grid size: %d x %d\n", nBlocksX, nBlocksY);
 
     // Launch kernel0 10 times
+    PUSH_RANGE("matmul0", 0)
     for (int i = 0; i < 10; i++)
     {
+        PUSH_RANGE("iter", i)
         matmul0<<<grid, block>>>(d_a, d_b, d_c, nrow);
+        POP_RANGE
     }
+    POP_RANGE
 
     // Copy the result back to the host
     cudaMemcpy(c, d_c, nrow*nrow*sizeof(float), cudaMemcpyDeviceToHost);
     printf("c[0] = %f\n", c[0]);
 
     // Call the tiled matmul kernel 10 times
+    PUSH_RANGE("tiledMatmul", 1)
     for (int i = 0; i < 10; i++)
     {
-        tiledMatmul<<<grid, block,ntx*nty*sizeof(float)>>>(d_a, d_b, d_c, nrow);
+        PUSH_RANGE("iter", i)
+        tiledMatmul<<<grid, block>>>(d_a, d_b, d_c, nrow);
+        POP_RANGE
     }
+    POP_RANGE
 
     // Copy the result back to the host
     cudaMemcpy(c, d_c, nrow*nrow*sizeof(float), cudaMemcpyDeviceToHost);

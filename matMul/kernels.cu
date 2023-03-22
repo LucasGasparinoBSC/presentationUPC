@@ -34,38 +34,38 @@ __global__ void matmul0(float *A, float *B, float *C, int N) {
     }
 }
 
-__global__ void tiledMatmul(float *A, float *B, float *C, int N) {
-    // Create the empty dynamic shared memory arrays
-    extern __shared__ float Atile[];
-    extern __shared__ float Btile[];
-    // Define tile sizes
-    int bx = blockDim.x;
-    int by = blockDim.y;
-    // Get the thread indexes
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    // Define global indexes
-    int i = bx * blockIdx.x + tx; // Row
-    int j = by * blockIdx.y + ty; // Column
-    // Get grid dimensions (blocks in the grid, per direction)
-    int gridDimX = gridDim.x;
-    int gridDimY = gridDim.y;
+__global__ void tiledMatmul(float *A, float *B, float *C, int N)
+{
+    // Create shared memory blocks
+    __shared__ float As[16][16];
+    __shared__ float Bs[16][16];
+    // Get block indices
+    int ib = blockIdx.x;
+    int jb = blockIdx.y;
+    // Get thread indices
+    int it = threadIdx.x;
+    int jt = threadIdx.y;
+    // Get global indices
+    int i = ib * 16 + it;
+    int j = jb * 16 + jt;
+    // Check if indices are valid
     if (i < N && j < N) {
-        // Set an initial temp to 0
-        float sum = 0.0f;
-        // Compute
-        for (int k = 0; k < gridDimX; k++) {
-            // Load global chunks into shared memory
-            Atile[tx * bx + ty] = A[i * N + k * by + ty];
-            Btile[ty * by + tx] = B[j + N*(k*bx+tx)]; // local B already transposed
+        float sum = 0;
+        // Loop over tiles
+        for (int t = 0; t < N / 16; t++) {
+            // Load tiles into shared memory
+            As[it][jt] = A[i * N + t * 16 + jt];   // Load a chunk of A
+            Bs[it][jt] = B[(t * 16 + it) * N + j]; // Load a chunk of B^T
+            // Synchronize threads
             __syncthreads();
-            // Compute the partial sum
-            for (int kk = 0; kk < bx; kk++) {
-                sum += Atile[kk*bx+tx] * Btile[kk*bx+ty];
+            // Compute partial sum
+            for (int k = 0; k < 16; k++) {
+                sum += As[it][k] * Bs[k][jt];
             }
+            // Synchronize threads
             __syncthreads();
-            // Write the partial sum to global memory
         }
+        // Write result
         C[i * N + j] = sum;
     }
 }
