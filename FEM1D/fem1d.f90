@@ -426,8 +426,8 @@ program fem1d
 		integer(4), parameter   :: nNodes=pOrder+1
 		integer(4), parameter   :: nGauss=pOrder+1
 		integer(4), parameter   :: nTimes=10
-		!integer(8), parameter   :: nElem=1e4*64 ! Number of elements (change at will)
-		integer(8), parameter   :: nElem=100000 ! Number of elements (change at will)
+		integer(8), parameter   :: nElem=1e3*64 ! Number of elements (change at will)
+		!integer(8), parameter   :: nElem=100000 ! Number of elements (change at will)
 		integer(8), parameter   :: nPoints=(nElem+1) + (nElem*(pOrder-1))
 		integer(8), allocatable :: listConnec(:,:)
 		integer(4)              :: iNode, iGauss, iTime
@@ -487,7 +487,6 @@ program fem1d
 		end do
 		avgTime = avgTime / real(nTimes,8)
 		write(*,*) "Average time: ", avgTime, "s"
-		print *, sum(Rconvec)
 		! Call and time the omp convective kernel n times
 		avgTime = 0.0
 		do iTime = 1,nTimes
@@ -500,7 +499,6 @@ program fem1d
 		end do
 		avgTime = avgTime / real(nTimes,8)
 		write(*,*) "OMP Average time: ", avgTime, "s"
-		print *, sum(Rconvec_OMP)
 		! Call and time the acc convective kernel n times
 		avgTime = 0.0
 		!$acc enter data copyin(listConnec,wgp,Ngp,dNgp,Je,He,phi)
@@ -515,7 +513,6 @@ program fem1d
 		!$acc exit data delete(listConnec,wgp,Ngp,dNgp,Je,He,phi) copyout(Rconvec)
 		avgTime = avgTime / real(nTimes,8)
 		write(*,*) "ACC Average time: ", avgTime, "s"
-		print *, sum(Rconvec_ACC)
 		! Save formatted results to a file
 		open(1,file='results.txt',status='replace')
 		do iPoint = 1,nPoints
