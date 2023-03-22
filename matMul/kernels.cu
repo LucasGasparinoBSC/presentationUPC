@@ -34,9 +34,17 @@ __global__ void matmul0(float *A, float *B, float *C, int N) {
     }
 }
 
+/**
+ * @brief Matrix multiplication kernel with shared memory.
+ *
+ * @param A (float) Input matrix A
+ * @param B (float) Input matrix B
+ * @param C (float) Output matrix C
+ * @param N (int) Row size of the matrices
+ */
 __global__ void tiledMatmul(float *A, float *B, float *C, int N)
 {
-    // Create shared memory blocks
+    // Create static shared memory tiles (16x16)
     __shared__ float As[16][16];
     __shared__ float Bs[16][16];
     // Get block indices

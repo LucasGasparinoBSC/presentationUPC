@@ -4,7 +4,7 @@
 int main()
 {
     // Set matrix row size
-    int nrow = 8000;
+    int nrow = 2000;
     printf("Total memory used: %f MB\n", 3*nrow*nrow*sizeof(float)/1024.0f/1024.0f);
 
     // Allocate n*n matrices
