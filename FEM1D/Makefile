@@ -2,8 +2,8 @@
 FC = nvfortran
 
 # Set device compute capability and cuda version
-CCXY = cc86
-CUDAXY = cuda12.0
+CCXY = cc61
+CUDAXY = cuda11.8
 
 # Set the flags for the nnvfortran compiler
 FFLAGS = -fast -Minfo=all -gpu=$(CCXY),$(CUDAXY),managed,lineinfo -cuda -acc -mp=multicore

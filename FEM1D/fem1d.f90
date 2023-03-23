@@ -416,6 +416,7 @@ module elemOps
 end module elemOps
 
 program fem1d
+	use mod_nvtx
 	use mesh
 	use FEM
 	use elemOps
@@ -426,7 +427,7 @@ program fem1d
 		integer(4), parameter   :: nNodes=pOrder+1
 		integer(4), parameter   :: nGauss=pOrder+1
 		integer(4), parameter   :: nTimes=10
-		integer(8), parameter   :: nElem=1e3*64 ! Number of elements (change at will)
+		integer(8), parameter   :: nElem=1e5*64 ! Number of elements (change at will)
 		!integer(8), parameter   :: nElem=100000 ! Number of elements (change at will)
 		integer(8), parameter   :: nPoints=(nElem+1) + (nElem*(pOrder-1))
 		integer(8), allocatable :: listConnec(:,:)
@@ -442,9 +443,11 @@ program fem1d
 		write(*,'(a,i4)') "Number of threads: ", omp_get_max_threads()
 		write(*,'(a,i4)') "Number of NVIDIA devices: ", acc_get_num_devices(acc_device_nvidia)
 		! Generate the mesh
+		call nvtxStartRange("Generating mesh...")
 		allocate(listConnec(nElem,nNodes))
 		allocate(xyz(nPoints))
 		call generateMesh(nElem,pOrder,nNodes,nPoints,listConnec,xyz,hElem)
+		call nvtxEndRange
 		write(*,'(a)') "!----------------------------------------!"
 		write(*,'(a,i0)') "Number of elements: ", nElem
 		write(*,'(a,i0)') "Number of points: ", nPoints
@@ -464,7 +467,9 @@ program fem1d
 		! Element Jacobian and inverse (special scenario for 1D eelements)
 		Je = hElem/2.0
 		He = 1.0/Je
+		call nvtxStartRange("Generating element type")
 		call evalElemInfo(pOrder,wgp,Ngp,dNgp)
+		call nvtxEndRange
 		! Generate initial dummy data
 		allocate(phi(nPoints))
 		!$acc parallel loop
@@ -477,39 +482,51 @@ program fem1d
 		allocate(Rconvec(nPoints), Rconvec_ACC(nPoints), Rconvec_OMP(nPoints))
 		! Call and time the single thread convective kernel n times
 		avgTime = 0.0
+		call nvtxStartRange("Single core run...")
 		do iTime = 1,nTimes
 			call CPU_TIME(t0)
+			call nvtxStartRange("iter")
 			call convec(nElem,nNodes,nGauss,nPoints,listConnec,wgp,Ngp,dNgp,Je,He,phi,Rconvec)
+			call nvtxEndRange
 			call CPU_TIME(t1)
 			write(*,*) "Completed in ", t1-t0, "s"
 			time = t1-t0
 			avgTime = avgTime + time
 		end do
+		call nvtxEndRange
 		avgTime = avgTime / real(nTimes,8)
 		write(*,*) "Average time: ", avgTime, "s"
 		! Call and time the omp convective kernel n times
 		avgTime = 0.0
+		call nvtxStartRange("OMP run...")
 		do iTime = 1,nTimes
 			call CPU_TIME(t0)
+			call nvtxStartRange("iter")
 			call convec_omp(nElem,nNodes,nGauss,nPoints,listConnec,wgp,Ngp,dNgp,Je,He,phi,Rconvec_OMP)
+			call nvtxEndRange
 			call CPU_TIME(t1)
 			write(*,*) "OMP Completed in ", t1-t0, "s"
 			time = t1-t0
 			avgTime = avgTime + time
 		end do
+		call nvtxEndRange
 		avgTime = avgTime / real(nTimes,8)
 		write(*,*) "OMP Average time: ", avgTime, "s"
 		! Call and time the acc convective kernel n times
 		avgTime = 0.0
 		!$acc enter data copyin(listConnec,wgp,Ngp,dNgp,Je,He,phi)
+		call nvtxStartRange("ACC run...")
 		do iTime = 1,nTimes
 			call CPU_TIME(t0)
+			call nvtxStartRange("iter")
 			call convec_acc(nElem,nNodes,nGauss,nPoints,listConnec,wgp,Ngp,dNgp,Je,He,phi,Rconvec_ACC)
+			call nvtxEndRange
 			call CPU_TIME(t1)
 			write(*,*) "ACC Completed in ", t1-t0, "s"
 			time = t1-t0
 			avgTime = avgTime + time
 		end do
+		call nvtxEndRange
 		!$acc exit data delete(listConnec,wgp,Ngp,dNgp,Je,He,phi) copyout(Rconvec)
 		avgTime = avgTime / real(nTimes,8)
 		write(*,*) "ACC Average time: ", avgTime, "s"
