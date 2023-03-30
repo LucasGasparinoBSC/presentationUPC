@@ -1,5 +1,4 @@
 /.~lock.*
 .vscode
 matMul/build
-FEM1D/*.txt
 FEM1D/build
