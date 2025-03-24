@@ -2,3 +2,4 @@
 .vscode
 matMul/build
 FEM1D/build
+dotProduct/build
